@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Meta Tags para Previsão no WhatsApp/Redes Sociais -->
+    <meta property="og:title" content="Guilherme Toffol - Psicologia & Psicanálise">
+    <meta property="og:description" content="Toque para visualizar meu cartão de visita interativo e entrar em contato.">
+    <meta property="og:type" content="website">
+    
+    <title>Cartão de Visita 3D - Guilherme Toffol</title>
+    
+    <!-- Importando a fonte Cormorant Garamond -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #555;
+            pointer-events: none;
+            z-index: 10;
+            font-size: 14px;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+        }
+        
+        #tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(46, 48, 51, 0.9); /* Cor Chumbo Escuro */
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 20;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-family: sans-serif;
+            transform: translate(-50%, -120%); /* Centraliza acima do cursor */
+        }
+        
+        #canvas-container { width: 100vw; height: 100vh; }
+    </style>
+    
+    <!-- Carregando Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Carregando OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="info">Arraste para girar • Toque nos textos para interagir</div>
+    <div id="tooltip"></div>
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- Configuração da Cena ---
+        const container = document.getElementById('canvas-container');
+        const tooltip = document.getElementById('tooltip');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf5f5f7); 
+
+        // Câmera
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = 6;
+        camera.position.y = 1;
+
+        // Renderizador
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Controles de Órbita
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 3;
+        controls.maxDistance = 10;
+
+        // --- Iluminação ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirLight.position.set(5, 5, 10);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        backLight.position.set(-5, 5, -10);
+        scene.add(backLight);
+
+        // --- Geração de Texturas (Canvas 2D) ---
+        
+        function createTexture(textData, isFront) {
+            const canvas = document.createElement('canvas');
+            const width = 1024; 
+            const height = 600; 
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // Fundo Branco Papel
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+
+            // Textura de ruído sutil
+            ctx.globalAlpha = 0.04;
+            for(let i=0; i<60000; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? "#ccc" : "#fff";
+                ctx.fillRect(Math.random()*width, Math.random()*height, 2, 2);
+            }
+            ctx.globalAlpha = 1.0;
+
+            // Cores (Chumbo / Grafite)
+            const colorChumboDark = "#2E3033";   // Chumbo escuro para textos principais
+            const colorChumboLight = "#55595c";  // Chumbo médio para detalhes
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            if (isFront) {
+                // --- FRENTE ---
+                
+                // Ícone de Chave (Minimalista)
+                const keyY = centerY - 130;
+                drawKeyIcon(ctx, centerX, keyY, 60, colorChumboDark);
+
+                // Nome
+                ctx.fillStyle = colorChumboDark;
+                ctx.font = "bold 90px 'Cormorant Garamond', serif"; 
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(textData.name, centerX, centerY);
+
+                // Linha decorativa
+                ctx.beginPath();
+                ctx.moveTo(centerX - 80, centerY + 60);
+                ctx.lineTo(centerX + 80, centerY + 60);
+                ctx.strokeStyle = colorChumboLight;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Especialidade
+                ctx.fillStyle = colorChumboLight;
+                ctx.font = "600 36px 'Cormorant Garamond', serif"; 
+                ctx.letterSpacing = "3px";
+                ctx.fillText(textData.specialty, centerX, centerY + 100);
+
+                // CRP
+                ctx.fillStyle = "#888";
+                ctx.font = "italic 28px 'Cormorant Garamond', serif";
+                ctx.fillText(textData.crp, centerX, centerY + 150);
+
+            } else {
+                // --- VERSO ---
+                
+                // Marca d'água sutil (Chave grande)
+                ctx.save();
+                ctx.translate(width/2, height/2);
+                ctx.rotate(-Math.PI / 12);
+                ctx.globalAlpha = 0.03;
+                drawKeyIcon(ctx, 0, 0, 300, "#000"); 
+                ctx.globalAlpha = 1.0;
+                ctx.restore();
+
+                ctx.textAlign = "left";
+                
+                // Layout Proporcional
+                const contentHeight = 300; 
+                const startY = (height - contentHeight) / 2 + 30; // ~180px
+                const lineHeight = 100; 
+                const leftMargin = 140;
+
+                // Estilo de fonte base
+                const fontBaseSize = "48px";
+                const fontSmallSize = "38px";
+                const fontCtx = `${fontBaseSize} 'Cormorant Garamond', serif`;
+                
+                // 1. WhatsApp
+                drawIcon(ctx, 'whatsapp', leftMargin, startY, colorChumboLight);
+                ctx.fillStyle = colorChumboDark;
+                ctx.font = "600 " + fontCtx;
+                ctx.fillText(textData.phone, leftMargin + 80, startY + 15);
+
+                // 2. Instagram
+                const line2Y = startY + lineHeight;
+                drawIcon(ctx, 'instagram', leftMargin, line2Y, colorChumboLight);
+                ctx.fillText(textData.web, leftMargin + 80, line2Y + 15);
+
+                // 3. Google Maps
+                const line3Y = startY + lineHeight * 2;
+                drawIcon(ctx, 'maps', leftMargin, line3Y, colorChumboLight);
+                
+                // Endereço
+                ctx.font = "500 " + fontSmallSize + " 'Cormorant Garamond', serif";
+                const addressParts = textData.address.split("-");
+                const rua = addressParts[0].trim();
+                const resto = "-" + addressParts.slice(1).join("-");
+
+                ctx.fillText(rua, leftMargin + 80, line3Y + 5);
+                ctx.fillStyle = colorChumboLight;
+                ctx.fillText(resto, leftMargin + 80, line3Y + 50); 
+            }
+
+            return canvas;
+        }
+
+        // Função para desenhar a Chave Minimalista
+        function drawKeyIcon(ctx, x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            
+            const headRadius = size * 0.35;
+            const shaftWidth = size * 0.15;
+            const shaftLength = size * 0.9;
+            
+            ctx.beginPath();
+            ctx.lineWidth = size * 0.08;
+            ctx.arc(x, y - shaftLength/3, headRadius, 0, Math.PI * 2);
+            ctx.stroke(); 
+            
+            ctx.beginPath();
+            ctx.fillRect(x - shaftWidth/2, y + headRadius - shaftLength/3, shaftWidth, shaftLength);
+            
+            const teethStartY = y + headRadius - shaftLength/3 + shaftLength * 0.6;
+            const toothSize = shaftWidth * 1.2;
+            
+            ctx.fillRect(x + shaftWidth/2, teethStartY, toothSize, shaftWidth);
+            ctx.fillRect(x + shaftWidth/2, teethStartY + shaftWidth * 1.5, toothSize * 0.8, shaftWidth);
+        }
+
+        function drawIcon(ctx, type, x, y, color) {
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            
+            const cx = x + 25; 
+            const cy = y + 15; 
+            const s = 35; // Tamanho base do ícone
+
+            ctx.beginPath();
+            
+            if (type === 'whatsapp') {
+                // Balão de conversa
+                const r = s / 2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                
+                // Rabinho do balão
+                ctx.moveTo(cx + r * Math.cos(2.2), cy + r * Math.sin(2.2)); 
+                ctx.lineTo(cx - r * 1.2, cy + r * 1.2); 
+                ctx.lineTo(cx + r * Math.cos(2.6), cy + r * Math.sin(2.6)); 
+                ctx.fill();
+
+                // Telefone (vazado)
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(-45 * Math.PI / 180);
+
+                const phoneWidth = s * 0.5;
+                const phoneThickness = s * 0.14;
+
+                ctx.beginPath();
+                ctx.rect(-phoneWidth/2, -phoneThickness/2, phoneWidth, phoneThickness);
+                ctx.arc(-phoneWidth/2 + 1, 0, phoneThickness * 1.3, 0, Math.PI * 2); 
+                ctx.arc(phoneWidth/2 - 1, 0, phoneThickness * 1.3, 0, Math.PI * 2); 
+                ctx.fill();
+
+                ctx.restore();
+                ctx.globalCompositeOperation = 'source-over';
+
+            } else if (type === 'instagram') {
+                // Caixa arredondada
+                ctx.lineWidth = 3;
+                const r = 8;
+                const half = s/2;
+                
+                ctx.beginPath();
+                ctx.moveTo(cx - half + r, cy - half);
+                ctx.lineTo(cx + half - r, cy - half);
+                ctx.quadraticCurveTo(cx + half, cy - half, cx + half, cy - half + r);
+                ctx.lineTo(cx + half, cy + half - r);
+                ctx.quadraticCurveTo(cx + half, cy + half, cx + half - r, cy + half);
+                ctx.lineTo(cx - half + r, cy + half);
+                ctx.quadraticCurveTo(cx - half, cy + half, cx - half, cy + half - r);
+                ctx.lineTo(cx - half, cy - half + r);
+                ctx.quadraticCurveTo(cx - half, cy - half, cx - half + r, cy - half);
+                ctx.stroke();
+
+                // Lente
+                ctx.beginPath();
+                ctx.arc(cx, cy, s/4, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Flash
+                ctx.beginPath();
+                ctx.arc(cx + half - 5, cy - half + 5, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (type === 'maps') {
+                // Pin
+                ctx.beginPath();
+                const r = s/2.2;
+                ctx.arc(cx, cy - 4, r, Math.PI, 0, false);
+                ctx.lineTo(cx, cy + r + 8);
+                ctx.lineTo(cx - r, cy - 4);
+                ctx.fill();
+                
+                // Furo
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(cx, cy - 4, r/2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalCompositeOperation = 'source-over';
+            }
+            ctx.closePath();
+        }
+
+        // Dados do Cartão
+        const frontData = {
+            name: "Guilherme Toffol",
+            specialty: "PSICOLOGIA CLÍNICA & PSICANÁLISE",
+            crp: "CRP 08/27454"
+        };
+
+        const backData = {
+            phone: "(41)992550309",
+            web: "guilhermetoffol.psi",
+            address: "Av. Victor Ferreira do Amaral, 190 - Tarumã, Curitiba - PR, 82530-230"
+        };
+
+        // Variáveis globais para Raycasting
+        let cardMesh;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        document.fonts.ready.then(function () {
+            init3D();
+        });
+
+        function init3D() {
+            const frontCanvas = createTexture(frontData, true);
+            const backCanvas = createTexture(backData, false);
+
+            const frontTexture = new THREE.CanvasTexture(frontCanvas);
+            const backTexture = new THREE.CanvasTexture(backCanvas);
+            
+            frontTexture.minFilter = THREE.LinearFilter;
+            frontTexture.magFilter = THREE.LinearFilter;
+            backTexture.minFilter = THREE.LinearFilter;
+            backTexture.magFilter = THREE.LinearFilter;
+
+            const geometry = new THREE.BoxGeometry(3.5, 2.0, 0.02);
+
+            const edgeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+            const faceFrontMaterial = new THREE.MeshStandardMaterial({ map: frontTexture, roughness: 0.5, metalness: 0.0 });
+            const faceBackMaterial = new THREE.MeshStandardMaterial({ map: backTexture, roughness: 0.5, metalness: 0.0 });
+
+            // Índices de material: 0-3 bordas, 4 frente, 5 verso
+            const materials = [
+                edgeMaterial, edgeMaterial, edgeMaterial, edgeMaterial,
+                faceFrontMaterial, faceBackMaterial
+            ];
+
+            cardMesh = new THREE.Mesh(geometry, materials);
+            cardMesh.castShadow = true;
+            cardMesh.receiveShadow = true;
+            scene.add(cardMesh);
+            
+            animate();
+        }
+
+        let initialRotation = true;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (scene.children.length > 3 && initialRotation) { 
+                 scene.children[3].rotation.y += 0.005; 
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        container.addEventListener('mousedown', () => { initialRotation = false; });
+        container.addEventListener('touchstart', () => { initialRotation = false; });
+
+        // --- Interação de Mouse/Toque ---
+        
+        // Função auxiliar para detectar zona de clique
+        function getLinkZone(uv, materialIndex) {
+            const xValid = uv.x > 0.1 && uv.x < 0.9;
+            if (!xValid) return null;
+
+            // Frente (Material Index 4)
+            if (materialIndex === 4) {
+                // Abrange a área do texto e ícone central
+                if (uv.y > 0.16 && uv.y < 0.85) {
+                    return 'website_front';
+                }
+            }
+            
+            // Verso (Material Index 5)
+            if (materialIndex === 5) {
+                if (uv.y > 0.60 && uv.y < 0.76) {
+                    return 'whatsapp';
+                } else if (uv.y > 0.44 && uv.y < 0.59) {
+                    return 'instagram';
+                } else if (uv.y > 0.20 && uv.y < 0.43) {
+                    return 'maps';
+                }
+            }
+            return null;
+        }
+
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            if (!cardMesh) return;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(cardMesh);
+
+            let hoveringZone = null;
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                // Passa o materialIndex para saber se é frente (4) ou verso (5)
+                hoveringZone = getLinkZone(intersect.uv, intersect.face.materialIndex);
+            }
+
+            if (hoveringZone) {
+                container.style.cursor = 'pointer';
+                tooltip.style.display = 'block';
+                tooltip.style.left = event.clientX + 'px';
+                tooltip.style.top = event.clientY + 'px';
+
+                if (hoveringZone === 'website_front') {
+                    tooltip.innerText = "Visitar site";
+                } else if (hoveringZone === 'whatsapp') {
+                    tooltip.innerText = "Abrir WhatsApp";
+                } else if (hoveringZone === 'instagram') {
+                    tooltip.innerText = "Abrir Instagram";
+                } else if (hoveringZone === 'maps') {
+                    tooltip.innerText = "Ver no Google Maps";
+                }
+            } else {
+                container.style.cursor = 'default';
+                tooltip.style.display = 'none';
+            }
+        }
+
+        function onClick(event) {
+            if (!cardMesh) return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(cardMesh);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const zone = getLinkZone(intersect.uv, intersect.face.materialIndex);
+                
+                if (zone === 'website_front') {
+                    window.open("https://guilhermetoffol.com/", "_blank");
+                } else if (zone === 'whatsapp') {
+                    window.open("https://wa.me/+5541992550309", "_blank");
+                } else if (zone === 'instagram') {
+                    window.open("https://instagram.com/guilhermetoffol.psi", "_blank");
+                } else if (zone === 'maps') {
+                    window.open("https://www.google.com/maps?ll=-25.427957,-49.238456&z=13&t=m&hl=pt-PT&gl=US&mapclient=embed&q=Av.+Victor+Ferreira+do+Amaral,+190+-+Tarum%C3%A3+Curitiba+-+PR+82530-230", "_blank");
+                }
+            }
+        }
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('click', onClick);
+
+    </script>
+</body>
+</html>
