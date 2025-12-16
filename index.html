@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Meta Tags para Previsão no WhatsApp/Redes Sociais -->
+<meta property="og:title" content="Guilherme Toffol - Psicologia & Psicanálise">
+<meta property="og:description" content="Toque para visualizar meu cartão de visita interativo e entrar em contato.">
+<meta property="og:type" content="website">
+
+<title>Cartão de Visita 3D - Guilherme Toffol</title>
+
+<!-- Fonte -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#info {
+    position: absolute;
+    top: 20px;
+    width: 100%;
+    text-align: center;
+    color: #555;
+    pointer-events: none;
+    z-index: 10;
+    font-size: 14px;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+}
+
+#tooltip {
+    position: absolute;
+    display: none;
+    background: rgba(46, 48, 51, 0.9);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 20;
+    white-space: nowrap;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    transform: translate(-50%, -120%);
+}
+
+#canvas-container {
+    width: 100vw;
+    height: 100vh;
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+
+<body>
+
+<div id="info">Arraste para girar • Toque nos textos para interagir</div>
+<div id="tooltip"></div>
+<div id="canvas-container"></div>
+
+<script>
+/* ===== CENA ===== */
+const container = document.getElementById('canvas-container');
+const tooltip = document.getElementById('tooltip');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf5f5f7);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1, 6);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 3;
+controls.maxDistance = 10;
+
+/* ===== LUZ ===== */
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+dirLight.position.set(5, 5, 10);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+scene.add(new THREE.DirectionalLight(0xffffff, 0.3));
+
+/* ===== TEXTURAS ===== */
+function createTexture(data, front) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 600;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#2E3033";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (front) {
+        ctx.font = "bold 90px 'Cormorant Garamond', serif";
+        ctx.fillText(data.name, 512, 280);
+
+        ctx.font = "600 36px 'Cormorant Garamond', serif";
+        ctx.fillText(data.specialty, 512, 360);
+
+        ctx.font = "italic 28px 'Cormorant Garamond', serif";
+        ctx.fillText(data.crp, 512, 410);
+    } else {
+        ctx.textAlign = "left";
+        ctx.font = "600 48px 'Cormorant Garamond', serif";
+        ctx.fillText(data.phone, 180, 220);
+        ctx.fillText(data.web, 180, 320);
+
+        ctx.font = "38px 'Cormorant Garamond', serif";
+        ctx.fillText(data.address, 180, 420);
+    }
+    return canvas;
+}
+
+/* ===== DADOS ===== */
+const frontData = {
+    name: "Guilherme Toffol",
+    specialty: "PSICOLOGIA CLÍNICA & PSICANÁLISE",
+    crp: "CRP 08/27454"
+};
+
+const backData = {
+    phone: "(41) 99255-0309",
+    web: "guilhermetoffol.psi",
+    address: "Av. Victor Ferreira do Amaral, 190 - Tarumã, Curitiba - PR"
+};
+
+let card;
+
+/* ===== INIT ===== */
+document.fonts.ready.then(() => {
+    const frontTex = new THREE.CanvasTexture(createTexture(frontData, true));
+    const backTex = new THREE.CanvasTexture(createTexture(backData, false));
+
+    const geometry = new THREE.BoxGeometry(3.5, 2, 0.02);
+    const edge = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+    card = new THREE.Mesh(geometry, [
+        edge, edge, edge, edge,
+        new THREE.MeshStandardMaterial({ map: frontTex }),
+        new THREE.MeshStandardMaterial({ map: backTex })
+    ]);
+
+    scene.add(card);
+    animate();
+});
+
+function animate() {
+    requestAnimationFrame(animate);
+    card.rotation.y += 0.003;
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
